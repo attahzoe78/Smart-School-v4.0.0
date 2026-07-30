@@ -1,0 +1,556 @@
+     1→"use client";
+     2→
+     3→import { useState, useMemo } from "react";
+     4→import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+     5→import { api } from "@/lib/api-client";
+     6→import { PageHeader } from "@/components/shared/page-header";
+     7→import { StatCard } from "@/components/shared/stat-card";
+     8→import { EmptyState } from "@/components/shared/empty-state";
+     9→import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+    10→import { Button } from "@/components/ui/button";
+    11→import { Input } from "@/components/ui/input";
+    12→import { Label } from "@/components/ui/label";
+    13→import { Textarea } from "@/components/ui/textarea";
+    14→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+    15→import { Card, CardContent } from "@/components/ui/card";
+    16→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+    17→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+    18→import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    19→import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+    20→import { Badge } from "@/components/ui/badge";
+    21→import { ScrollArea } from "@/components/ui/scroll-area";
+    22→import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+    23→import { toast } from "sonner";
+    24→import {
+    25→  Plus, Search, GraduationCap, Users, UserPlus, UserCheck, Eye, Pencil, Trash2,
+    26→  Phone, Mail, MapPin, Calendar, BookOpen, Wallet, Activity, FileText, X,
+    27→} from "lucide-react";
+    28→import { formatCurrency, formatDate, calculateAge, getInitials, getFullName } from "@/lib/format";
+    29→import { NIGERIAN_STATES, BLOOD_GROUPS } from "@/lib/constants";
+    30→import { useAppStore } from "@/store/app";
+    31→
+    32→export function StudentsScreen() {
+    33→  const { activeModule } = useAppStore();
+    34→  const queryClient = useQueryClient();
+    35→  const [search, setSearch] = useState("");
+    36→  const [classFilter, setClassFilter] = useState("");
+    37→  const [genderFilter, setGenderFilter] = useState("");
+    38→  const [addOpen, setAddOpen] = useState(false);
+    39→  const [editStudent, setEditStudent] = useState<any>(null);
+    40→  const [viewStudent, setViewStudent] = useState<any>(null);
+    41→  const [page, setPage] = useState(0);
+    42→  const pageSize = 15;
+    43→
+    44→  const { data: students = [], isLoading } = useQuery({
+    45→    queryKey: ["students", search, classFilter, genderFilter],
+    46→    queryFn: () => {
+    47→      const params = new URLSearchParams();
+    48→      if (search) params.set("search", search);
+    49→      if (classFilter) params.set("classId", classFilter);
+    50→      if (genderFilter) params.set("gender", genderFilter);
+    51→      return api(`/api/students?${params.toString()}`);
+    52→    },
+    53→  });
+    54→
+    55→  const { data: settings } = useQuery({
+    56→    queryKey: ["settings-all"],
+    57→    queryFn: () => api("/api/settings"),
+    58→  });
+    59→
+    60→  const classes = settings?.classes || [];
+    61→  const houses = settings?.houses || [];
+    62→
+    63→  const stats = useMemo(() => ({
+    64→    total: students.length,
+    65→    male: students.filter((s: any) => s.gender === "Male").length,
+    66→    female: students.filter((s: any) => s.gender === "Female").length,
+    67→    active: students.filter((s: any) => s.isActive).length,
+    68→  }), [students]);
+    69→
+    70→  const paginatedStudents = students.slice(page * pageSize, (page + 1) * pageSize);
+    71→  const totalPages = Math.ceil(students.length / pageSize);
+    72→
+    73→  const deleteMutation = useMutation({
+    74→    mutationFn: (id: string) => api(`/api/students?id=${id}`, { method: "DELETE" }),
+    75→    onSuccess: () => {
+    76→      queryClient.invalidateQueries({ queryKey: ["students"] });
+    77→      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    78→      toast.success("Student deleted successfully");
+    79→    },
+    80→    onError: (e: any) => toast.error(e.message),
+    81→  });
+    82→
+    83→  return (
+    84→    <div className="space-y-6">
+    85→      <PageHeader
+    86→        title="Student Information"
+    87→        description="Manage student admissions, profiles, and records"
+    88→        icon={<GraduationCap className="h-5 w-5" />}
+    89→        action={
+    90→          <Button onClick={() => { setEditStudent(null); setAddOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700">
+    91→            <Plus className="h-4 w-4" /> Add Student
+    92→          </Button>
+    93→        }
+    94→      />
+    95→
+    96→      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    97→        <StatCard title="Total Students" value={stats.total} icon={GraduationCap} color="bg-emerald-500" />
+    98→        <StatCard title="Male" value={stats.male} icon={Users} color="bg-blue-500" />
+    99→        <StatCard title="Female" value={stats.female} icon={Users} color="bg-pink-500" />
+   100→        <StatCard title="Active" value={stats.active} icon={UserCheck} color="bg-violet-500" />
+   101→      </div>
+   102→
+   103→      <Card>
+   104→        <CardContent className="p-4">
+   105→          {/* Filters */}
+   106→          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+   107→            <div className="relative flex-1">
+   108→              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   109→              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or admission no..." className="pl-9" />
+   110→            </div>
+   111→            <Select value={classFilter} onValueChange={setClassFilter}>
+   112→              <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder="All Classes" /></SelectTrigger>
+   113→              <SelectContent>
+   114→                <SelectItem value="">All Classes</SelectItem>
+   115→                {classes.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+   116→              </SelectContent>
+   117→            </Select>
+   118→            <Select value={genderFilter} onValueChange={setGenderFilter}>
+   119→              <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="All Genders" /></SelectTrigger>
+   120→              <SelectContent>
+   121→                <SelectItem value="">All Genders</SelectItem>
+   122→                <SelectItem value="Male">Male</SelectItem>
+   123→                <SelectItem value="Female">Female</SelectItem>
+   124→              </SelectContent>
+   125→            </Select>
+   126→          </div>
+   127→
+   128→          {/* Table */}
+   129→          {isLoading ? (
+   130→            <div className="py-12 text-center text-sm text-muted-foreground">Loading students...</div>
+   131→          ) : students.length === 0 ? (
+   132→            <EmptyState
+   133→              title="No students found"
+   134→              description="Add your first student or adjust filters"
+   135→              icon={<GraduationCap className="h-7 w-7" />}
+   136→              action={<Button onClick={() => setAddOpen(true)} className="bg-emerald-600 hover:bg-emerald-700"><Plus className="h-4 w-4" /> Add Student</Button>}
+   137→            />
+   138→          ) : (
+   139→            <>
+   140→              <div className="overflow-x-auto">
+   141→                <Table>
+   142→                  <TableHeader>
+   143→                    <TableRow>
+   144→                      <TableHead>Student</TableHead>
+   145→                      <TableHead>Admission No</TableHead>
+   146→                      <TableHead>Class</TableHead>
+   147→                      <TableHead>Gender</TableHead>
+   148→                      <TableHead>Parent</TableHead>
+   149→                      <TableHead>Status</TableHead>
+   150→                      <TableHead className="text-right">Actions</TableHead>
+   151→                    </TableRow>
+   152→                  </TableHeader>
+   153→                  <TableBody>
+   154→                    {paginatedStudents.map((s: any) => (
+   155→                      <TableRow key={s.id} className="hover:bg-muted/50">
+   156→                        <TableCell>
+   157→                          <div className="flex items-center gap-3">
+   158→                            <Avatar className="h-9 w-9">
+   159→                              <AvatarImage src={s.photo || undefined} />
+   160→                              <AvatarFallback className="bg-emerald-100 text-emerald-700 text-xs">{getInitials(s.firstName, s.lastName)}</AvatarFallback>
+   161→                            </Avatar>
+   162→                            <div>
+   163→                              <p className="text-sm font-medium">{s.firstName} {s.lastName}</p>
+   164→                              <p className="text-xs text-muted-foreground">{s.phone || "—"}</p>
+   165→                            </div>
+   166→                          </div>
+   167→                        </TableCell>
+   168→                        <TableCell className="font-mono text-xs">{s.admissionNo}</TableCell>
+   169→                        <TableCell>{s.currentClass?.name || "—"} {s.section?.name ? `(${s.section.name})` : ""}</TableCell>
+   170→                        <TableCell>
+   171→                          <Badge variant={s.gender === "Male" ? "default" : "secondary"} className={s.gender === "Male" ? "bg-blue-500" : "bg-pink-500 text-white"}>
+   172→                            {s.gender || "—"}
+   173→                          </Badge>
+   174→                        </TableCell>
+   175→                        <TableCell>
+   176→                          <div>
+   177→                            <p className="text-sm">{s.parent ? getFullName(s.parent) : "—"}</p>
+   178→                            <p className="text-xs text-muted-foreground">{s.parent?.phone || ""}</p>
+   179→                          </div>
+   180→                        </TableCell>
+   181→                        <TableCell>
+   182→                          <Badge variant={s.isActive ? "default" : "destructive"} className={s.isActive ? "bg-emerald-500" : ""}>
+   183→                            {s.isActive ? "Active" : "Inactive"}
+   184→                          </Badge>
+   185→                        </TableCell>
+   186→                        <TableCell className="text-right">
+   187→                          <div className="flex items-center justify-end gap-1">
+   188→                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewStudent(s)}>
+   189→                              <Eye className="h-4 w-4" />
+   190→                            </Button>
+   191→                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditStudent(s); setAddOpen(true); }}>
+   192→                              <Pencil className="h-4 w-4" />
+   193→                            </Button>
+   194→                            <ConfirmDialog
+   195→                              trigger={<Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>}
+   196→                              title="Delete Student?"
+   197→                              description={`This will permanently delete ${s.firstName} ${s.lastName} and all related records.`}
+   198→                              confirmText="Delete"
+   199→                              onConfirm={() => deleteMutation.mutate(s.id)}
+   200→                            />
+   201→                          </div>
+   202→                        </TableCell>
+   203→                      </TableRow>
+   204→                    ))}
+   205→                  </TableBody>
+   206→                </Table>
+   207→              </div>
+   208→              {totalPages > 1 && (
+   209→                <div className="flex items-center justify-between mt-4">
+   210→                  <p className="text-sm text-muted-foreground">Showing {page * pageSize + 1} to {Math.min((page + 1) * pageSize, students.length)} of {students.length}</p>
+   211→                  <div className="flex gap-1">
+   212→                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>Previous</Button>
+   213→                    <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</Button>
+   214→                  </div>
+   215→                </div>
+   216→              )}
+   217→            </>
+   218→          )}
+   219→        </CardContent>
+   220→      </Card>
+   221→
+   222→      {/* Add/Edit Dialog */}
+   223→      <StudentFormDialog
+   224→        open={addOpen}
+   225→        onOpenChange={setAddOpen}
+   226→        student={editStudent}
+   227→        classes={classes}
+   228→        houses={houses}
+   229→      />
+   230→
+   231→      {/* View Sheet */}
+   232→      <StudentDetailSheet student={viewStudent} onClose={() => setViewStudent(null)} />
+   233→    </div>
+   234→  );
+   235→}
+   236→
+   237→function StudentFormDialog({ open, onOpenChange, student, classes, houses }: any) {
+   238→  const queryClient = useQueryClient();
+   239→  const [saving, setSaving] = useState(false);
+   240→  const isEdit = !!student;
+   241→
+   242→  const [form, setForm] = useState<any>(() => student || {
+   243→    firstName: "", lastName: "", middleName: "", gender: "Male", dateOfBirth: "",
+   244→    bloodGroup: "", nationality: "Nigerian", stateOfOrigin: "Plateau",
+   245→    admissionDate: new Date().toISOString().split("T")[0],
+   246→    phone: "", email: "", address: "", city: "Jos", state: "Plateau",
+   247→    currentClassId: "", sectionId: "", houseId: "",
+   248→    religion: "Christianity", rollNo: "",
+   249→    parent: { firstName: "", lastName: "", relation: "Father", phone: "", email: "", occupation: "", address: "" },
+   250→  });
+   251→
+   252→  // Reset form when dialog opens
+   253→  useMemo(() => {
+   254→    if (open) {
+   255→      setForm(student || {
+   256→        firstName: "", lastName: "", middleName: "", gender: "Male", dateOfBirth: "",
+   257→        bloodGroup: "", nationality: "Nigerian", stateOfOrigin: "Plateau",
+   258→        admissionDate: new Date().toISOString().split("T")[0],
+   259→        phone: "", email: "", address: "", city: "Jos", state: "Plateau",
+   260→        currentClassId: "", sectionId: "", houseId: "",
+   261→        religion: "Christianity", rollNo: "",
+   262→        parent: { firstName: "", lastName: "", relation: "Father", phone: "", email: "", occupation: "", address: "" },
+   263→      });
+   264→    }
+   265→  }, [open, student]);
+   266→
+   267→  const update = (key: string, value: any) => setForm((f: any) => ({ ...f, [key]: value }));
+   268→  const updateParent = (key: string, value: any) => setForm((f: any) => ({ ...f, parent: { ...f.parent, [key]: value } }));
+   269→
+   270→  const selectedClass = classes.find((c: any) => c.id === form.currentClassId);
+   271→  const sections = selectedClass?.sections || [];
+   272→
+   273→  async function handleSave() {
+   274→    if (!form.firstName || !form.lastName) { toast.error("First and last name are required"); return; }
+   275→    setSaving(true);
+   276→    try {
+   277→      const payload = { ...form, dateOfBirth: form.dateOfBirth || null, ageAsOn: null };
+   278→      if (isEdit) {
+   279→        await api(`/api/students`, { method: "PUT", body: JSON.stringify({ id: student.id, ...payload }) });
+   280→        toast.success("Student updated successfully");
+   281→      } else {
+   282→        await api(`/api/students`, { method: "POST", body: JSON.stringify(payload) });
+   283→        toast.success("Student admitted successfully! Login: " + (form.admissionNo || "auto-generated").toLowerCase().replace(/\//g, ""));
+   284→      }
+   285→      queryClient.invalidateQueries({ queryKey: ["students"] });
+   286→      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+   287→      onOpenChange(false);
+   288→    } catch (e: any) {
+   289→      toast.error(e.message);
+   290→    } finally {
+   291→      setSaving(false);
+   292→    }
+   293→  }
+   294→
+   295→  return (
+   296→    <Dialog open={open} onOpenChange={onOpenChange}>
+   297→      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+   298→        <DialogHeader>
+   299→          <DialogTitle>{isEdit ? "Edit Student" : "New Student Admission"}</DialogTitle>
+   300→        </DialogHeader>
+   301→        <div className="space-y-4">
+   302→          {/* Personal Info */}
+   303→          <div>
+   304→            <h4 className="text-sm font-semibold mb-2 text-emerald-700">Personal Information</h4>
+   305→            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+   306→              <div className="space-y-1"><Label>First Name <span className="text-destructive">*</span></Label><Input value={form.firstName} onChange={(e) => update("firstName", e.target.value)} /></div>
+   307→              <div className="space-y-1"><Label>Middle Name</Label><Input value={form.middleName} onChange={(e) => update("middleName", e.target.value)} /></div>
+   308→              <div className="space-y-1"><Label>Last Name <span className="text-destructive">*</span></Label><Input value={form.lastName} onChange={(e) => update("lastName", e.target.value)} /></div>
+   309→              <div className="space-y-1">
+   310→                <Label>Gender</Label>
+   311→                <Select value={form.gender} onValueChange={(v) => update("gender", v)}>
+   312→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   313→                  <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
+   314→                </Select>
+   315→              </div>
+   316→              <div className="space-y-1"><Label>Date of Birth</Label><Input type="date" value={form.dateOfBirth} onChange={(e) => update("dateOfBirth", e.target.value)} /></div>
+   317→              <div className="space-y-1">
+   318→                <Label>Blood Group</Label>
+   319→                <Select value={form.bloodGroup} onValueChange={(v) => update("bloodGroup", v)}>
+   320→                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+   321→                  <SelectContent>{BLOOD_GROUPS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+   322→                </Select>
+   323→              </div>
+   324→              <div className="space-y-1">
+   325→                <Label>Religion</Label>
+   326→                <Select value={form.religion} onValueChange={(v) => update("religion", v)}>
+   327→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   328→                  <SelectContent><SelectItem value="Christianity">Christianity</SelectItem><SelectItem value="Islam">Islam</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent>
+   329→                </Select>
+   330→              </div>
+   331→              <div className="space-y-1">
+   332→                <Label>State of Origin</Label>
+   333→                <Select value={form.stateOfOrigin} onValueChange={(v) => update("stateOfOrigin", v)}>
+   334→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   335→                  <SelectContent>{NIGERIAN_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+   336→                </Select>
+   337→              </div>
+   338→              <div className="space-y-1"><Label>Admission Date</Label><Input type="date" value={form.admissionDate} onChange={(e) => update("admissionDate", e.target.value)} /></div>
+   339→            </div>
+   340→          </div>
+   341→
+   342→          {/* Academic Info */}
+   343→          <div>
+   344→            <h4 className="text-sm font-semibold mb-2 text-emerald-700">Academic Information</h4>
+   345→            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+   346→              <div className="space-y-1">
+   347→                <Label>Class</Label>
+   348→                <Select value={form.currentClassId} onValueChange={(v) => { update("currentClassId", v); update("sectionId", ""); }}>
+   349→                  <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+   350→                  <SelectContent>{classes.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+   351→                </Select>
+   352→              </div>
+   353→              <div className="space-y-1">
+   354→                <Label>Section</Label>
+   355→                <Select value={form.sectionId} onValueChange={(v) => update("sectionId", v)} disabled={!sections.length}>
+   356→                  <SelectTrigger><SelectValue placeholder="Select section" /></SelectTrigger>
+   357→                  <SelectContent>{sections.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+   358→                </Select>
+   359→              </div>
+   360→              <div className="space-y-1">
+   361→                <Label>House</Label>
+   362→                <Select value={form.houseId} onValueChange={(v) => update("houseId", v)}>
+   363→                  <SelectTrigger><SelectValue placeholder="Select house" /></SelectTrigger>
+   364→                  <SelectContent>{houses.map((h: any) => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}</SelectContent>
+   365→                </Select>
+   366→              </div>
+   367→              <div className="space-y-1"><Label>Roll No</Label><Input type="number" value={form.rollNo} onChange={(e) => update("rollNo", parseInt(e.target.value))} /></div>
+   368→            </div>
+   369→          </div>
+   370→
+   371→          {/* Contact Info */}
+   372→          <div>
+   373→            <h4 className="text-sm font-semibold mb-2 text-emerald-700">Contact Information</h4>
+   374→            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+   375→              <div className="space-y-1"><Label>Phone</Label><Input value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+234..." /></div>
+   376→              <div className="space-y-1"><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} /></div>
+   377→              <div className="space-y-1"><Label>City</Label><Input value={form.city} onChange={(e) => update("city", e.target.value)} /></div>
+   378→              <div className="space-y-1">
+   379→                <Label>State</Label>
+   380→                <Select value={form.state} onValueChange={(v) => update("state", v)}>
+   381→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   382→                  <SelectContent>{NIGERIAN_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+   383→                </Select>
+   384→              </div>
+   385→              <div className="space-y-1 md:col-span-2"><Label>Address</Label><Input value={form.address} onChange={(e) => update("address", e.target.value)} /></div>
+   386→            </div>
+   387→          </div>
+   388→
+   389→          {/* Parent/Guardian */}
+   390→          <div>
+   391→            <h4 className="text-sm font-semibold mb-2 text-emerald-700">Parent / Guardian</h4>
+   392→            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+   393→              <div className="space-y-1"><Label>First Name</Label><Input value={form.parent?.firstName} onChange={(e) => updateParent("firstName", e.target.value)} /></div>
+   394→              <div className="space-y-1"><Label>Last Name</Label><Input value={form.parent?.lastName} onChange={(e) => updateParent("lastName", e.target.value)} /></div>
+   395→              <div className="space-y-1">
+   396→                <Label>Relation</Label>
+   397→                <Select value={form.parent?.relation} onValueChange={(v) => updateParent("relation", v)}>
+   398→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   399→                  <SelectContent><SelectItem value="Father">Father</SelectItem><SelectItem value="Mother">Mother</SelectItem><SelectItem value="Guardian">Guardian</SelectItem></SelectContent>
+   400→                </Select>
+   401→              </div>
+   402→              <div className="space-y-1"><Label>Phone</Label><Input value={form.parent?.phone} onChange={(e) => updateParent("phone", e.target.value)} placeholder="+234..." /></div>
+   403→              <div className="space-y-1"><Label>Email</Label><Input type="email" value={form.parent?.email} onChange={(e) => updateParent("email", e.target.value)} /></div>
+   404→              <div className="space-y-1"><Label>Occupation</Label><Input value={form.parent?.occupation} onChange={(e) => updateParent("occupation", e.target.value)} /></div>
+   405→            </div>
+   406→          </div>
+   407→
+   408→          <div className="flex justify-end gap-2 pt-2 border-t">
+   409→            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+   410→            <Button onClick={handleSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">
+   411→              {saving ? "Saving..." : isEdit ? "Update Student" : "Admit Student"}
+   412→            </Button>
+   413→          </div>
+   414→        </div>
+   415→      </DialogContent>
+   416→    </Dialog>
+   417→  );
+   418→}
+   419→
+   420→function StudentDetailSheet({ student, onClose }: any) {
+   421→  const [activeTab, setActiveTab] = useState("overview");
+   422→  const [detail, setDetail] = useState<any>(null);
+   423→
+   424→  const { data, isLoading } = useQuery({
+   425→    queryKey: ["student-detail", student?.id],
+   426→    queryFn: () => api(`/api/students?id=${student.id}`),
+   427→    enabled: !!student,
+   428→  });
+   429→
+   430→  if (!student) return null;
+   431→  const s = data || student;
+   432→
+   433→  return (
+   434→    <Sheet open={!!student} onOpenChange={(o) => !o && onClose()}>
+   435→      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto p-0">
+   436→        <SheetHeader className="p-4 border-b bg-muted/30">
+   437→          <div className="flex items-center gap-4">
+   438→            <Avatar className="h-16 w-16">
+   439→              <AvatarImage src={s.photo || undefined} />
+   440→              <AvatarFallback className="bg-emerald-600 text-white text-xl">{getInitials(s.firstName, s.lastName)}</AvatarFallback>
+   441→            </Avatar>
+   442→            <div className="flex-1">
+   443→              <SheetTitle className="text-xl">{getFullName(s)}</SheetTitle>
+   444→              <p className="text-sm text-muted-foreground">{s.admissionNo} • {s.currentClass?.name} {s.section?.name}</p>
+   445→              <div className="flex items-center gap-2 mt-1">
+   446→                <Badge variant={s.isActive ? "default" : "destructive"} className={s.isActive ? "bg-emerald-500" : ""}>{s.isActive ? "Active" : "Inactive"}</Badge>
+   447→                <Badge variant="secondary">{s.gender}</Badge>
+   448→              </div>
+   449→            </div>
+   450→          </div>
+   451→        </SheetHeader>
+   452→
+   453→        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+   454→          <TabsList className="w-full justify-start px-4 border-b rounded-none bg-transparent h-auto p-0">
+   455→            <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600">Overview</TabsTrigger>
+   456→            <TabsTrigger value="attendance" className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600">Attendance</TabsTrigger>
+   457→            <TabsTrigger value="fees" className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600">Fees</TabsTrigger>
+   458→            <TabsTrigger value="timeline" className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600">Timeline</TabsTrigger>
+   459→          </TabsList>
+   460→
+   461→          <div className="p-4">
+   462→            {isLoading ? (
+   463→              <div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>
+   464→            ) : (
+   465→              <>
+   466→                <TabsContent value="overview" className="mt-0 space-y-4">
+   467→                  <div className="grid grid-cols-2 gap-3">
+   468→                    <InfoItem icon={Calendar} label="Date of Birth" value={`${formatDate(s.dateOfBirth)} (${calculateAge(s.dateOfBirth)} yrs)`} />
+   469→                    <InfoItem icon={Activity} label="Blood Group" value={s.bloodGroup || "—"} />
+   470→                    <InfoItem icon={MapPin} label="State of Origin" value={`${s.stateOfOrigin || "—"}, ${s.lga || ""}`} />
+   471→                    <InfoItem icon={BookOpen} label="Religion" value={s.religion || "—"} />
+   472→                    <InfoItem icon={Phone} label="Phone" value={s.phone || "—"} />
+   473→                    <InfoItem icon={Mail} label="Email" value={s.email || "—"} />
+   474→                    <InfoItem icon={MapPin} label="Address" value={`${s.address || "—"}, ${s.city || ""}`} />
+   475→                    <InfoItem icon={Calendar} label="Admission Date" value={formatDate(s.admissionDate)} />
+   476→                  </div>
+   477→                  {s.house && <InfoItem icon={Users} label="House" value={s.house.name} />}
+   478→                  {s.parent && (
+   479→                    <div className="mt-4 pt-4 border-t">
+   480→                      <h4 className="text-sm font-semibold mb-2">Parent / Guardian</h4>
+   481→                      <div className="grid grid-cols-2 gap-3">
+   482→                        <InfoItem icon={Users} label="Name" value={getFullName(s.parent)} />
+   483→                        <InfoItem icon={Users} label="Relation" value={s.parent.relation} />
+   484→                        <InfoItem icon={Phone} label="Phone" value={s.parent.phone || "—"} />
+   485→                        <InfoItem icon={Mail} label="Email" value={s.parent.email || "—"} />
+   486→                      </div>
+   487→                    </div>
+   488→                  )}
+   489→                </TabsContent>
+   490→
+   491→                <TabsContent value="attendance" className="mt-0">
+   492→                  <div className="space-y-2 max-h-96 overflow-y-auto">
+   493→                    {s.attendance?.length ? s.attendance.map((a: any) => (
+   494→                      <div key={a.id} className="flex items-center justify-between p-2 rounded-lg border">
+   495→                        <span className="text-sm">{formatDate(a.date)}</span>
+   496→                        <Badge variant={a.status === "Present" ? "default" : "destructive"} className={a.status === "Present" ? "bg-emerald-500" : a.status === "Late" ? "bg-amber-500" : ""}>{a.status}</Badge>
+   497→                      </div>
+   498→                    )) : <EmptyState title="No attendance records" />}
+   499→                  </div>
+   500→                </TabsContent>
+   501→
+   502→                <TabsContent value="fees" className="mt-0">
+   503→                  <div className="space-y-2">
+   504→                    {s.invoices?.length ? s.invoices.map((inv: any) => (
+   505→                      <div key={inv.id} className="p-3 rounded-lg border">
+   506→                        <div className="flex items-center justify-between">
+   507→                          <span className="text-sm font-medium">{inv.invoiceNo}</span>
+   508→                          <Badge variant={inv.status === "Paid" ? "default" : inv.status === "Partial" ? "secondary" : "destructive"} className={inv.status === "Paid" ? "bg-emerald-500" : inv.status === "Partial" ? "bg-amber-500 text-white" : ""}>{inv.status}</Badge>
+   509→                        </div>
+   510→                        <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+   511→                          <div><span className="text-muted-foreground">Amount:</span> {formatCurrency(inv.amount)}</div>
+   512→                          <div><span className="text-muted-foreground">Paid:</span> {formatCurrency(inv.paidAmount)}</div>
+   513→                          <div><span className="text-muted-foreground">Balance:</span> {formatCurrency(inv.balance)}</div>
+   514→                        </div>
+   515→                      </div>
+   516→                    )) : <EmptyState title="No fee records" />}
+   517→                  </div>
+   518→                </TabsContent>
+   519→
+   520→                <TabsContent value="timeline" className="mt-0">
+   521→                  <div className="space-y-3">
+   522→                    {s.timeline?.length ? s.timeline.map((t: any) => (
+   523→                      <div key={t.id} className="flex gap-3 p-3 rounded-lg border">
+   524→                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shrink-0">
+   525→                          <FileText className="h-4 w-4" />
+   526→                        </div>
+   527→                        <div>
+   528→                          <p className="text-sm font-medium">{t.title}</p>
+   529→                          <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
+   530→                          {t.description && <p className="text-sm mt-1">{t.description}</p>}
+   531→                        </div>
+   532→                      </div>
+   533→                    )) : <EmptyState title="No timeline events" />}
+   534→                  </div>
+   535→                </TabsContent>
+   536→              </>
+   537→            )}
+   538→          </div>
+   539→        </Tabs>
+   540→      </SheetContent>
+   541→    </Sheet>
+   542→  );
+   543→}
+   544→
+   545→function InfoItem({ icon: Icon, label, value }: any) {
+   546→  return (
+   547→    <div className="flex items-start gap-2">
+   548→      <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+   549→      <div>
+   550→        <p className="text-xs text-muted-foreground">{label}</p>
+   551→        <p className="text-sm font-medium">{value}</p>
+   552→      </div>
+   553→    </div>
+   554→  );
+   555→}
+   556→
