@@ -17,13 +17,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   Plus, ClipboardList, FileText, Eye, Trash2, Save, GraduationCap,
-  CheckCircle2, Activity,
+  CheckCircle2, Activity, Pencil, X,
 } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { GRADE_SCALE, getGrade } from "@/lib/constants";
+
+function getExamStatus(startDate: string | Date, endDate: string | Date | null | undefined): "active" | "upcoming" | "completed" {
+  const now = new Date();
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : null;
+  if (start > now) return "upcoming";
+  if (end && end < now) return "completed";
+  if (!end && start <= now) return "active";
+  return "active";
+}
 
 export function ExamsScreen() {
   const queryClient = useQueryClient();
@@ -44,12 +55,8 @@ export function ExamsScreen() {
 
   const stats = useMemo(() => {
     const now = new Date();
-    const active = exams.filter(
-      (e: any) => new Date(e.startDate) <= now && new Date(e.endDate) >= now
-    ).length;
-    const totalResults = exams.reduce(
-      (acc: number, e: any) => acc + (e._count?.results || 0), 0
-    );
+    const active = exams.filter((e: any) => getExamStatus(e.startDate, e.endDate) === "active").length;
+    const totalResults = exams.reduce((acc: number, e: any) => acc + (e._count?.results || 0), 0);
     return { total: exams.length, active, totalResults, avg: 0 };
   }, [exams]);
 
@@ -57,7 +64,8 @@ export function ExamsScreen() {
     mutationFn: (id: string) => api(`/api/exams?id=${id}&action=exam`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["exams"] });
-      toast.success("Exam deleted");
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success("Exam deleted successfully");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -96,7 +104,7 @@ export function ExamsScreen() {
               ) : exams.length === 0 ? (
                 <EmptyState
                   title="No exams yet"
-                  description="Create your first examination"
+                  description="Create your first examination to start recording results"
                   icon={<ClipboardList className="h-7 w-7" />}
                   action={
                     <Button onClick={() => setCreateOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
@@ -120,9 +128,7 @@ export function ExamsScreen() {
                     </TableHeader>
                     <TableBody>
                       {exams.map((e: any) => {
-                        const now = new Date();
-                        const isActive = new Date(e.startDate) <= now && new Date(e.endDate) >= now;
-                        const upcoming = new Date(e.startDate) > now;
+                        const status = getExamStatus(e.startDate, e.endDate);
                         const count = e._count?.results || 0;
                         return (
                           <TableRow key={e.id} className="hover:bg-muted/50">
@@ -139,10 +145,13 @@ export function ExamsScreen() {
                             <TableCell><Badge variant="outline">{count}</Badge></TableCell>
                             <TableCell>
                               <Badge
-                                variant={isActive ? "default" : upcoming ? "secondary" : "outline"}
-                                className={isActive ? "bg-emerald-500" : upcoming ? "bg-amber-100 text-amber-700" : ""}
+                                variant={status === "active" ? "default" : status === "upcoming" ? "secondary" : "outline"}
+                                className={
+                                  status === "active" ? "bg-emerald-500" :
+                                  status === "upcoming" ? "bg-amber-100 text-amber-700" : ""
+                                }
                               >
-                                {isActive ? "Active" : upcoming ? "Upcoming" : "Completed"}
+                                {status === "active" ? "Active" : status === "upcoming" ? "Upcoming" : "Completed"}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
@@ -151,14 +160,14 @@ export function ExamsScreen() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => setActiveTab("results")}
-                                  title="View Results"
+                                  title="Enter Results"
                                 >
                                   <Eye className="h-4 w-4" /> Results
                                 </Button>
                                 <ConfirmDialog
                                   trigger={<Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>}
                                   title="Delete Exam?"
-                                  description={`This will permanently delete "${e.name}" and all related results.`}
+                                  description={`This will permanently delete "${e.name}" and all ${count} result(s).`}
                                   confirmText="Delete"
                                   onConfirm={() => deleteMutation.mutate(e.id)}
                                 />
@@ -206,10 +215,8 @@ function CreateExamDialog({ open, onOpenChange, classes }: any) {
   const sections = selectedClass?.sections || [];
 
   async function handleSave() {
-    if (!form.name || !form.classId) {
-      toast.error("Name and class are required");
-      return;
-    }
+    if (!form.name) { toast.error("Exam name is required"); return; }
+    if (!form.classId) { toast.error("Class is required"); return; }
     if (new Date(form.endDate) < new Date(form.startDate)) {
       toast.error("End date must be after start date");
       return;
@@ -256,9 +263,12 @@ function CreateExamDialog({ open, onOpenChange, classes }: any) {
             </div>
             <div className="space-y-1">
               <Label>Section</Label>
-              <Select value={form.sectionId} onValueChange={(v) => update("sectionId", v)} disabled={!sections.length}>
-                <SelectTrigger><SelectValue placeholder="Select section" /></SelectTrigger>
-                <SelectContent>{sections.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+              <Select value={form.sectionId || "none"} onValueChange={(v) => update("sectionId", v === "none" ? "" : v)} disabled={!sections.length}>
+                <SelectTrigger><SelectValue placeholder="All sections" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">All Sections</SelectItem>
+                  {sections.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
@@ -287,7 +297,9 @@ function ResultsTab({ exams, classes, subjects }: any) {
   const [examId, setExamId] = useState("");
   const [classId, setClassId] = useState("");
   const [saving, setSaving] = useState(false);
+  // rows = new results being entered (one per student per subject)
   const [rows, setRows] = useState<any[]>([]);
+  const [subjectFilter, setSubjectFilter] = useState("");
 
   const selectedExam = exams.find((e: any) => e.id === examId);
   const effectiveClassId = classId || selectedExam?.classId;
@@ -298,41 +310,60 @@ function ResultsTab({ exams, classes, subjects }: any) {
     enabled: !!effectiveClassId,
   });
 
-  const { data: existingResults = [] } = useQuery({
+  const { data: existingResults = [], refetch } = useQuery({
     queryKey: ["exam-results", examId],
     queryFn: () => api(`/api/exams?action=results&examId=${examId}`),
     enabled: !!examId,
   });
 
-  useMemo(() => {
-    if (students.length) {
-      setRows(students.map((s: any) => {
-        const existing = existingResults.find((r: any) => r.studentId === s.id);
-        return {
-          studentId: s.id,
-          name: `${s.firstName} ${s.lastName}`.trim(),
-          admissionNo: s.admissionNo,
-          subjectName: existing?.subjectName || "",
-          marks: existing?.marks ?? "",
-          totalMarks: existing?.totalMarks || 100,
-        };
-      }));
-    } else {
-      setRows([]);
+  // Group existing results by student
+  const resultsByStudent = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const r of existingResults) {
+      if (!map[r.studentId]) map[r.studentId] = [];
+      map[r.studentId].push(r);
     }
-  }, [students, existingResults]);
+    return map;
+  }, [existingResults]);
 
-  const updateRow = (studentId: string, key: string, value: any) => {
-    setRows((prev) => prev.map((r) => r.studentId === studentId ? { ...r, [key]: value } : r));
+  const updateRow = (idx: number, key: string, value: any) => {
+    setRows((prev) => prev.map((r, i) => i === idx ? { ...r, [key]: value } : r));
+  };
+
+  const addRow = () => {
+    setRows((prev) => [...prev, {
+      studentId: "",
+      subjectName: "",
+      marks: "",
+      totalMarks: 100,
+    }]);
+  };
+
+  const removeRow = (idx: number) => {
+    setRows((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const fillAllStudents = () => {
+    if (!students.length) { toast.error("No students in this class"); return; }
+    const subject = subjectFilter || (subjects[0]?.name || "");
+    setRows(students.map((s: any) => ({
+      studentId: s.id,
+      studentName: `${s.firstName} ${s.lastName}`,
+      admissionNo: s.admissionNo,
+      subjectName: subject,
+      marks: "",
+      totalMarks: 100,
+    })));
+    toast.success(`Added ${students.length} students`);
   };
 
   async function handleSave() {
     if (!examId) { toast.error("Select an exam first"); return; }
-    const valid = rows.filter((r) => r.subjectName && r.marks !== "" && r.marks !== null);
-    if (valid.length === 0) { toast.error("Add at least one valid result with subject and marks"); return; }
+    const valid = rows.filter((r) => r.studentId && r.subjectName && r.marks !== "" && r.marks !== null);
+    if (valid.length === 0) { toast.error("Add at least one valid result with student, subject, and marks"); return; }
     setSaving(true);
     try {
-      await api("/api/exams", {
+      const res = await api("/api/exams", {
         method: "POST",
         body: JSON.stringify({
           action: "save-results",
@@ -345,9 +376,10 @@ function ResultsTab({ exams, classes, subjects }: any) {
           })),
         }),
       });
-      toast.success(`Saved ${valid.length} result(s)`);
+      toast.success(`Saved ${res.total} result(s) — ${res.saved} new, ${res.updated} updated`);
       queryClient.invalidateQueries({ queryKey: ["exam-results", examId] });
       queryClient.invalidateQueries({ queryKey: ["exams"] });
+      setRows([]);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -355,135 +387,264 @@ function ResultsTab({ exams, classes, subjects }: any) {
     }
   }
 
+  async function deleteResult(id: string) {
+    try {
+      await api("/api/exams", {
+        method: "POST",
+        body: JSON.stringify({ action: "delete-result", id }),
+      });
+      toast.success("Result deleted");
+      queryClient.invalidateQueries({ queryKey: ["exam-results", examId] });
+      queryClient.invalidateQueries({ queryKey: ["exams"] });
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
   return (
-    <Card>
-      <CardContent className="p-4 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label>Exam <span className="text-destructive">*</span></Label>
-            <Select value={examId} onValueChange={setExamId}>
-              <SelectTrigger><SelectValue placeholder="Select exam" /></SelectTrigger>
-              <SelectContent>
-                {exams.length === 0 ? (
-                  <SelectItem value="" disabled>No exams available</SelectItem>
-                ) : (
-                  exams.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)
-                )}
-              </SelectContent>
-            </Select>
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          {/* Selectors */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Exam <span className="text-destructive">*</span></Label>
+              <Select value={examId || "none"} onValueChange={(v) => { setExamId(v === "none" ? "" : v); setRows([]); }}>
+                <SelectTrigger><SelectValue placeholder="Select exam" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none" disabled>Select an exam...</SelectItem>
+                  {exams.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Class (override exam's class)</Label>
+              <Select value={classId || "none"} onValueChange={(v) => { setClassId(v === "none" ? "" : v); setRows([]); }}>
+                <SelectTrigger><SelectValue placeholder="Use exam's class" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Use exam's class ({selectedExam?.class?.name || "—"})</SelectItem>
+                  {classes.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="space-y-1">
-            <Label>Class (override exam&apos;s class)</Label>
-            <Select value={classId} onValueChange={setClassId}>
-              <SelectTrigger><SelectValue placeholder="Use exam's class" /></SelectTrigger>
-              <SelectContent>
-                {classes.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
 
-        {/* Grade Scale Reference */}
-        <div className="rounded-lg border bg-muted/30 p-3">
-          <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-            <GraduationCap className="h-3.5 w-3.5" /> Grade Scale Reference
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {GRADE_SCALE.map((g) => (
-              <div key={g.grade} className="flex items-center gap-1 text-xs bg-background px-2 py-1 rounded-md border">
-                <Badge variant="outline" className="font-mono">{g.grade}</Badge>
-                <span className="text-muted-foreground">{g.min}-{g.max}%</span>
-                <span className="text-muted-foreground">·</span>
-                <span>{g.remark}</span>
+          {/* Grade Scale Reference */}
+          <div className="rounded-lg border bg-muted/30 p-3">
+            <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
+              <GraduationCap className="h-3.5 w-3.5" /> Grade Scale Reference
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {GRADE_SCALE.map((g) => (
+                <div key={g.grade} className="flex items-center gap-1 text-xs bg-background px-2 py-1 rounded-md border">
+                  <Badge variant="outline" className="font-mono">{g.grade}</Badge>
+                  <span className="text-muted-foreground">{g.min}-{g.max}%</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span>{g.remark}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {!examId ? (
+        <Card>
+          <CardContent className="p-4">
+            <EmptyState
+              title="Select an exam to enter results"
+              description="Pick an exam from the dropdown above to start recording student marks"
+              icon={<ClipboardList className="h-7 w-7" />}
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Enter Results Card */}
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Enter New Results</h3>
+                  <p className="text-xs text-muted-foreground">Add results for students. You can enter multiple subjects per student.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {students.length > 0 && (
+                    <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+                      <SelectTrigger className="w-40 h-8"><SelectValue placeholder="Subject" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">All Subjects</SelectItem>
+                        {subjects.map((s: any) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <Button variant="outline" size="sm" onClick={addRow} disabled={!students.length}>
+                    <Plus className="h-3.5 w-3.5" /> Add Row
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={fillAllStudents} disabled={!students.length}>
+                    <GraduationCap className="h-3.5 w-3.5" /> Fill All Students
+                  </Button>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {!examId ? (
-          <EmptyState
-            title="Select an exam to enter results"
-            description="Pick an exam from the dropdown above to start recording student marks"
-            icon={<ClipboardList className="h-7 w-7" />}
-          />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            title="No students found"
-            description="No students are enrolled in this class"
-            icon={<GraduationCap className="h-7 w-7" />}
-          />
-        ) : (
-          <>
-            <div className="overflow-x-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead className="w-48">Subject</TableHead>
-                    <TableHead className="w-28">Marks</TableHead>
-                    <TableHead className="w-28">Total</TableHead>
-                    <TableHead className="w-20">Grade</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((r) => {
-                    const hasMarks = r.marks !== "" && r.marks !== null;
-                    const marks = hasMarks ? Number(r.marks) : 0;
-                    const total = Number(r.totalMarks) || 100;
-                    const grade = hasMarks ? getGrade(marks, total) : null;
-                    return (
-                      <TableRow key={r.studentId}>
-                        <TableCell>
-                          <p className="text-sm font-medium">{r.name}</p>
-                          <p className="text-xs text-muted-foreground font-mono">{r.admissionNo}</p>
-                        </TableCell>
-                        <TableCell>
-                          <Select value={r.subjectName} onValueChange={(v) => updateRow(r.studentId, "subjectName", v)}>
-                            <SelectTrigger className="h-8"><SelectValue placeholder="Select subject" /></SelectTrigger>
-                            <SelectContent>
-                              {subjects.map((s: any) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            value={r.marks}
-                            onChange={(e) => updateRow(r.studentId, "marks", e.target.value)}
-                            className="h-8 w-24"
-                            placeholder="0"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            value={r.totalMarks}
-                            onChange={(e) => updateRow(r.studentId, "totalMarks", e.target.value)}
-                            className="h-8 w-24"
-                            placeholder="100"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          {grade ? (
-                            <Badge variant="outline" className="font-mono">{grade.grade}</Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="flex justify-end">
-              <Button onClick={handleSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">
-                <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save Results"}
-              </Button>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+              {rows.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground border rounded-lg border-dashed">
+                  No results entered yet. Click "Add Row" to enter a single result, or "Fill All Students" to add all students from the class.
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[180px]">Student</TableHead>
+                          <TableHead className="min-w-[160px]">Subject</TableHead>
+                          <TableHead className="w-28">Marks</TableHead>
+                          <TableHead className="w-28">Total</TableHead>
+                          <TableHead className="w-20">Grade</TableHead>
+                          <TableHead className="w-12"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {rows.map((r, idx) => {
+                          const hasMarks = r.marks !== "" && r.marks !== null;
+                          const marks = hasMarks ? Number(r.marks) : 0;
+                          const total = Number(r.totalMarks) || 100;
+                          const grade = hasMarks ? getGrade(marks, total) : null;
+                          return (
+                            <TableRow key={idx}>
+                              <TableCell>
+                                <Select value={r.studentId || "none"} onValueChange={(v) => updateRow(idx, "studentId", v === "none" ? "" : v)}>
+                                  <SelectTrigger className="h-8"><SelectValue placeholder="Select student" /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none" disabled>Select student...</SelectItem>
+                                    {students.map((s: any) => (
+                                      <SelectItem key={s.id} value={s.id}>
+                                        {s.firstName} {s.lastName} ({s.admissionNo})
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                <Select value={r.subjectName || "none"} onValueChange={(v) => updateRow(idx, "subjectName", v === "none" ? "" : v)}>
+                                  <SelectTrigger className="h-8"><SelectValue placeholder="Select subject" /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none" disabled>Select subject...</SelectItem>
+                                    {subjects.map((s: any) => <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>)}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={r.marks}
+                                  onChange={(e) => updateRow(idx, "marks", e.target.value)}
+                                  className="h-8 w-24"
+                                  placeholder="0"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  value={r.totalMarks}
+                                  onChange={(e) => updateRow(idx, "totalMarks", e.target.value)}
+                                  className="h-8 w-24"
+                                  placeholder="100"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                {grade ? (
+                                  <Badge variant="outline" className="font-mono">{grade.grade}</Badge>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeRow(idx)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button onClick={handleSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">
+                      <Save className="h-4 w-4" /> {saving ? "Saving..." : `Save ${rows.length} Result(s)`}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Existing Results Card */}
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Saved Results ({existingResults.length})</h3>
+                {existingResults.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => refetch()}>
+                    <Eye className="h-3.5 w-3.5" /> Refresh
+                  </Button>
+                )}
+              </div>
+              {existingResults.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">No results saved yet for this exam.</p>
+              ) : (
+                <ScrollArea className="max-h-96">
+                  <div className="overflow-x-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Student</TableHead>
+                          <TableHead>Class</TableHead>
+                          <TableHead>Subject</TableHead>
+                          <TableHead>Marks</TableHead>
+                          <TableHead>Grade</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {existingResults.map((r: any) => {
+                          const grade = getGrade(r.marks, r.totalMarks);
+                          return (
+                            <TableRow key={r.id}>
+                              <TableCell>
+                                <p className="text-sm font-medium">{r.student?.firstName} {r.student?.lastName}</p>
+                                <p className="text-xs text-muted-foreground font-mono">{r.student?.admissionNo}</p>
+                              </TableCell>
+                              <TableCell className="text-sm">{r.student?.currentClass?.name || "—"}</TableCell>
+                              <TableCell className="text-sm">{r.subjectName}</TableCell>
+                              <TableCell className="text-sm font-medium">{r.marks}/{r.totalMarks}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="font-mono">{grade.grade}</Badge>
+                                <span className="text-xs text-muted-foreground ml-1">{grade.remark}</span>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <ConfirmDialog
+                                  trigger={<Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>}
+                                  title="Delete Result?"
+                                  description="This will permanently delete this exam result."
+                                  confirmText="Delete"
+                                  onConfirm={() => deleteResult(r.id)}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
   );
 }

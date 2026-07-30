@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generateAdmissionNo, hashPassword } from "@/lib/auth";
+import { sanitizeData } from "@/lib/format";
 
 export async function GET(req: NextRequest) {
   try {
@@ -73,14 +74,16 @@ export async function POST(req: NextRequest) {
     }
 
     const admissionNo = studentData.admissionNo || generateAdmissionNo();
+    const cleaned = sanitizeData(studentData);
+    delete cleaned.parent;
     const student = await db.student.create({
       data: {
-        ...studentData,
+        ...cleaned,
         admissionNo,
         parentId,
-        admissionDate: studentData.admissionDate ? new Date(studentData.admissionDate) : new Date(),
-        dateOfBirth: studentData.dateOfBirth ? new Date(studentData.dateOfBirth) : null,
-        ageAsOn: studentData.ageAsOn ? new Date(studentData.ageAsOn) : null,
+        admissionDate: cleaned.admissionDate ? new Date(cleaned.admissionDate) : new Date(),
+        dateOfBirth: cleaned.dateOfBirth ? new Date(cleaned.dateOfBirth) : null,
+        ageAsOn: cleaned.ageAsOn ? new Date(cleaned.ageAsOn) : null,
       },
     });
 
@@ -113,10 +116,10 @@ export async function PUT(req: NextRequest) {
       await db.parent.update({ where: { id: parentData.id }, data: parentData });
     }
 
-    const data: any = { ...updateData };
-    if (updateData.admissionDate) data.admissionDate = new Date(updateData.admissionDate);
-    if (updateData.dateOfBirth) data.dateOfBirth = new Date(updateData.dateOfBirth);
-    if (updateData.ageAsOn) data.ageAsOn = new Date(updateData.ageAsOn);
+    const data: any = sanitizeData(updateData);
+    if (data.admissionDate) data.admissionDate = new Date(data.admissionDate);
+    if (data.dateOfBirth) data.dateOfBirth = new Date(data.dateOfBirth);
+    if (data.ageAsOn) data.ageAsOn = new Date(data.ageAsOn);
     delete data.parent;
 
     const student = await db.student.update({ where: { id }, data });

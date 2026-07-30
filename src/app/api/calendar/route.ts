@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { sanitizeData } from "@/lib/format";
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,15 +34,17 @@ export async function POST(req: NextRequest) {
 
     if (action === "create-event") {
       const { action: _, ...data } = body;
+      const cleaned = sanitizeData(data);
       const event = await db.calendarEvent.create({
-        data: { ...data, startDate: new Date(data.startDate), endDate: data.endDate ? new Date(data.endDate) : null },
+        data: { ...cleaned, startDate: new Date(cleaned.startDate), endDate: cleaned.endDate ? new Date(cleaned.endDate) : null },
       });
       return NextResponse.json(event, { status: 201 });
     }
     if (action === "create-task") {
       const { action: _, ...data } = body;
+      const cleaned = sanitizeData(data);
       const task = await db.task.create({
-        data: { ...data, dueDate: data.dueDate ? new Date(data.dueDate) : null },
+        data: { ...cleaned, dueDate: cleaned.dueDate ? new Date(cleaned.dueDate) : null },
       });
       return NextResponse.json(task, { status: 201 });
     }

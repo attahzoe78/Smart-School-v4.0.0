@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { sanitizeData } from "@/lib/format";
 
 export async function GET(req: NextRequest) {
   try {
@@ -41,8 +42,9 @@ export async function POST(req: NextRequest) {
 
     if (action === "create") {
       const { action: _, ...data } = body;
+      const cleaned = sanitizeData(data);
       const hw = await db.homework.create({
-        data: { ...data, homeworkDate: new Date(), submissionDate: new Date(data.submissionDate) },
+        data: { ...cleaned, homeworkDate: new Date(), submissionDate: new Date(cleaned.submissionDate) },
       });
       return NextResponse.json(hw, { status: 201 });
     }

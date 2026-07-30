@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { sanitizeData } from "@/lib/format";
 
 export async function GET(req: NextRequest) {
   try {
@@ -43,27 +44,31 @@ export async function POST(req: NextRequest) {
     const { type: _, ...data } = body;
 
     if (type === "page") {
-      const item = await db.page.create({ data: { ...data, slug: data.slug || data.title.toLowerCase().replace(/\s+/g, "-") } });
+      const cleaned = sanitizeData(data);
+      const item = await db.page.create({ data: { ...cleaned, slug: cleaned.slug || cleaned.title.toLowerCase().replace(/\s+/g, "-") } });
       return NextResponse.json(item, { status: 201 });
     }
     if (type === "news") {
-      const item = await db.news.create({ data: { ...data, slug: data.slug || data.title.toLowerCase().replace(/\s+/g, "-"), publishedAt: new Date() } });
+      const cleaned = sanitizeData(data);
+      const item = await db.news.create({ data: { ...cleaned, slug: cleaned.slug || cleaned.title.toLowerCase().replace(/\s+/g, "-"), publishedAt: new Date() } });
       return NextResponse.json(item, { status: 201 });
     }
     if (type === "event") {
-      const item = await db.event.create({ data: { ...data, startDate: new Date(data.startDate), endDate: data.endDate ? new Date(data.endDate) : null } });
+      const cleaned = sanitizeData(data);
+      const item = await db.event.create({ data: { ...cleaned, startDate: new Date(cleaned.startDate), endDate: cleaned.endDate ? new Date(cleaned.endDate) : null } });
       return NextResponse.json(item, { status: 201 });
     }
     if (type === "gallery") {
-      const item = await db.gallery.create({ data });
+      const item = await db.gallery.create({ data: sanitizeData(data) });
       return NextResponse.json(item, { status: 201 });
     }
     if (type === "banner") {
-      const item = await db.banner.create({ data });
+      const item = await db.banner.create({ data: sanitizeData(data) });
       return NextResponse.json(item, { status: 201 });
     }
     if (type === "menu") {
-      const item = await db.menu.create({ data });
+      const cleaned = sanitizeData(data);
+      const item = await db.menu.create({ data: { ...cleaned, parentId: cleaned.parentId || null } });
       return NextResponse.json(item, { status: 201 });
     }
     return NextResponse.json({ error: "Unknown type" }, { status: 400 });

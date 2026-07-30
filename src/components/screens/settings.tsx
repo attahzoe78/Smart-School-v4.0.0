@@ -20,12 +20,13 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Plus, Settings as SettingsIcon, GraduationCap, BookOpen, Building2, Home, Bus,
-  CalendarDays, Pencil, Trash2, Save, Users, DoorOpen, Route,
+  CalendarDays, Pencil, Trash2, Save, Users, DoorOpen, Route, Server, RefreshCw, Database, AlertTriangle, CheckCircle2,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { NIGERIAN_STATES } from "@/lib/constants";
+import { useAppStore } from "@/store/app";
 
-type TabValue = "general" | "classes" | "subjects" | "departments" | "hostel" | "transport" | "sessions";
+type TabValue = "general" | "classes" | "subjects" | "departments" | "hostel" | "transport" | "sessions" | "system";
 
 const TABS: { value: TabValue; label: string; icon: typeof SettingsIcon }[] = [
   { value: "general", label: "General", icon: SettingsIcon },
@@ -35,6 +36,7 @@ const TABS: { value: TabValue; label: string; icon: typeof SettingsIcon }[] = [
   { value: "hostel", label: "Hostel", icon: Home },
   { value: "transport", label: "Transport", icon: Bus },
   { value: "sessions", label: "Sessions", icon: CalendarDays },
+  { value: "system", label: "System", icon: Server },
 ];
 
 export function SettingsScreen() {
@@ -68,6 +70,7 @@ export function SettingsScreen() {
         <TabsContent value="hostel" className="mt-4"><HostelPanel /></TabsContent>
         <TabsContent value="transport" className="mt-4"><TransportPanel /></TabsContent>
         <TabsContent value="sessions" className="mt-4"><SessionsPanel /></TabsContent>
+        <TabsContent value="system" className="mt-4"><SystemPanel /></TabsContent>
       </Tabs>
     </div>
   );
@@ -1356,5 +1359,196 @@ function SessionDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* -------------------------------------------------------------- */
+/* System Panel - Install Info, Reset, Reinstall                  */
+/* -------------------------------------------------------------- */
+
+function SystemPanel() {
+  const { logout } = useAppStore();
+  const [resetting, setResetting] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings", "settings"],
+    queryFn: () => api("/api/settings?type=settings"),
+  });
+
+  const { data: installStatus } = useQuery({
+    queryKey: ["install-status"],
+    queryFn: () => api("/api/install"),
+  });
+
+  async function handleReset() {
+    setResetting(true);
+    try {
+      const res = await api("/api/reset", {
+        method: "POST",
+        body: JSON.stringify({ action: "reset-system" }),
+      });
+      toast.success(res.message);
+      setTimeout(() => {
+        logout();
+        window.location.reload();
+      }, 1500);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  async function handleClearDemo() {
+    setClearing(true);
+    try {
+      const res = await api("/api/reset", {
+        method: "POST",
+        body: JSON.stringify({ action: "clear-demo-data" }),
+      });
+      toast.success(res.message);
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Installation Status */}
+      <Card>
+        <CardContent className="p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <Database className="h-5 w-5 text-emerald-600" />
+            <h3 className="text-base font-semibold">Installation Status</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <div>
+                <p className="text-xs text-muted-foreground">System Status</p>
+                <p className="text-sm font-medium">{installStatus?.installed ? "Installed" : "Not Installed"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+              <Database className="h-5 w-5 text-violet-600" />
+              <div>
+                <p className="text-xs text-muted-foreground">Version</p>
+                <p className="text-sm font-medium">Smart School v4.0.0</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+              <SettingsIcon className="h-5 w-5 text-amber-600" />
+              <div>
+                <p className="text-xs text-muted-foreground">School Name</p>
+                <p className="text-sm font-medium">{settings?.schoolName || "—"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+              <CalendarDays className="h-5 w-5 text-sky-600" />
+              <div>
+                <p className="text-xs text-muted-foreground">Install Date</p>
+                <p className="text-sm font-medium">{settings?.startDate ? formatDate(settings.startDate) : "—"}</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm">
+            <p className="font-medium text-emerald-900">Web Install Application</p>
+            <p className="text-xs text-emerald-800 mt-1">
+              This Smart School installation was set up via the web-based installation wizard. The system is fully configured and ready to use.
+              You can reset the system to run the installer again, or clear demo data while keeping your configuration.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* System Information */}
+      <Card>
+        <CardContent className="p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Server className="h-5 w-5 text-violet-600" />
+            <h3 className="text-base font-semibold">System Information</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <InfoRow label="Software" value="Smart School" />
+            <InfoRow label="Version" value="4.0.0" />
+            <InfoRow label="Developer" value="Sisi Technology Ltd" />
+            <InfoRow label="Location" value="Jos, Plateau State, Nigeria" />
+            <InfoRow label="Framework" value="Next.js 16" />
+            <InfoRow label="Database" value="SQLite (Prisma ORM)" />
+            <InfoRow label="Currency" value={`${settings?.currency || "₦"} (${settings?.currencyCode || "NGN"})`} />
+            <InfoRow label="Timezone" value={settings?.timezone || "Africa/Lagos"} />
+            <InfoRow label="Language" value={settings?.language || "English"} />
+            <InfoRow label="Modules" value="25+" />
+            <InfoRow label="User Roles" value="8 (Super Admin, Admin, Accountant, Teacher, Receptionist, Librarian, Parent, Student)" />
+            <InfoRow label="License" value="Proprietary" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Danger Zone */}
+      <Card className="border-red-200">
+        <CardContent className="p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-red-600" />
+            <h3 className="text-base font-semibold text-red-700">Danger Zone</h3>
+          </div>
+
+          {/* Clear Demo Data */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-amber-200 bg-amber-50">
+            <div>
+              <p className="text-sm font-medium">Clear All Data</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Removes all students, staff, fees, exams, and other records. Keeps school settings and admin account.
+              </p>
+            </div>
+            <ConfirmDialog
+              trigger={
+                <Button variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-100" disabled={clearing}>
+                  <RefreshCw className={`h-4 w-4 ${clearing ? "animate-spin" : ""}`} /> {clearing ? "Clearing..." : "Clear Data"}
+                </Button>
+              }
+              title="Clear All Data?"
+              description="This will permanently delete ALL students, staff, fees, attendance, exams, and other records. Your school settings and admin login will be preserved. This action cannot be undone."
+              confirmText="Yes, Clear All Data"
+              onConfirm={handleClearDemo}
+            />
+          </div>
+
+          {/* Reset System */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-red-200 bg-red-50">
+            <div>
+              <p className="text-sm font-medium">Reset System (Reinstall)</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Completely resets the system to factory state. You will be redirected to the installation wizard to set up again.
+              </p>
+            </div>
+            <ConfirmDialog
+              trigger={
+                <Button variant="destructive" disabled={resetting}>
+                  <AlertTriangle className="h-4 w-4" /> {resetting ? "Resetting..." : "Reset System"}
+                </Button>
+              }
+              title="Reset Entire System?"
+              description="WARNING: This will completely erase ALL data including school settings, admin accounts, and all records. You will be redirected to the installation wizard to set up the system from scratch. This action cannot be undone."
+              confirmText="Yes, Reset Everything"
+              onConfirm={handleReset}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-2 py-1.5 border-b border-border/40 last:border-0">
+      <span className="text-muted-foreground text-xs">{label}</span>
+      <span className="text-xs font-medium text-right">{value}</span>
+    </div>
   );
 }

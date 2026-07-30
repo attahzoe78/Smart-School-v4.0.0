@@ -254,3 +254,25 @@ Stage Summary:
 - 8 user roles supported
 - Web install wizard works
 - Login: superadmin / password123
+
+---
+Task ID: FIX-1
+Agent: Main (Z.ai Code)
+Task: Fix exam results errors and enhance web install functionality
+
+Work Log:
+- Created sanitizeData() utility in src/lib/format.ts to convert empty strings to null for optional/foreign-key fields
+- Fixed exams API (route.ts): applied sanitizeData to create-exam, improved save-results to skip invalid rows and return saved/updated counts, added delete-result action, cascade delete exam results
+- Fixed homework API: applied sanitizeData to create action
+- Fixed students API: applied sanitizeData to POST and PUT for empty FK fields (houseId, hostelRoomId, transportRouteId, sectionId)
+- Fixed calendar API: applied sanitizeData to create-event and create-task
+- Fixed CMS API: applied sanitizeData to all create operations (page, news, event, gallery, banner, menu)
+- Rewrote exams.tsx screen: fixed null endDate date comparisons with getExamStatus() helper, fixed empty string SelectItem values (using "none" placeholder), redesigned Results tab with add-row/fill-all-students workflow, added Saved Results table with delete capability, grade display with remarks
+- Added /api/reset endpoint with reset-system (factory reset) and clear-demo-data actions
+- Added System tab to Settings screen with: Installation Status, System Information panel, Danger Zone (Clear Data + Reset System/Reinstall)
+
+Stage Summary:
+- Exam results creation and saving now works end-to-end (verified with Agent Browser: created exam, filled 8 students, entered marks for 3, saved successfully, results showed in Saved Results table with grades)
+- Web install app is complete: installation wizard on first load, System tab in Settings showing install status with reset/reinstall capability
+- All empty-string foreign key violations fixed across 5 API routes
+- Lint passes clean, no console errors

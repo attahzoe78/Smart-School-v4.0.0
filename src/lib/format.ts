@@ -52,3 +52,21 @@ export function getInitials(firstName: string, lastName: string): string {
 export function getFullName(parts: { firstName?: string; lastName?: string; middleName?: string }): string {
   return [parts.firstName, parts.middleName, parts.lastName].filter(Boolean).join(" ");
 }
+
+/**
+ * Sanitizes an object for Prisma create/update operations.
+ * Converts empty strings to null for optional fields (especially foreign keys).
+ * Also strips undefined values.
+ */
+export function sanitizeData<T extends Record<string, any>>(data: T): Partial<T> {
+  const result: any = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined) continue;
+    if (value === "") {
+      result[key] = null;
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
