@@ -2,12 +2,6 @@
   "appId": "com.sisitech.smartschool",
   "productName": "Smart School",
   "copyright": "Copyright © 2024 Sisi Technology Ltd",
-  "description": "Modern and Complete School Automation Software for the Nigerian Market",
-  "author": {
-    "name": "Sisi Technology Ltd",
-    "email": "info@sisitech.com",
-    "url": "https://github.com/attahzoe78/Smart-School-v4.0.0"
-  },
 
   "directories": {
     "output": "dist",
@@ -51,7 +45,6 @@
   ],
 
   "win": {
-    "icon": "electron/assets/icon.ico",
     "target": [
       {
         "target": "nsis",
@@ -68,16 +61,9 @@
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "Smart School",
-    "installerIcon": "electron/assets/icon.ico",
-    "uninstallerIcon": "electron/assets/icon.ico",
-    "installerHeaderIcon": "electron/assets/icon.ico",
     "deleteAppDataOnUninstall": false,
     "runAfterFinish": true,
-    "installerLanguages": ["en_US"],
-    "language": "1033",
-    "displayLanguageSelector": false,
-    "license": "LICENSE.txt",
-    "warningsAsErrors": false
+    "license": "LICENSE.txt"
   },
 
   "publish": {

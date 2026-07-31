@@ -2,6 +2,13 @@
   "name": "smart-school",
   "version": "4.0.0",
   "private": true,
+  "description": "Modern and Complete School Automation Software for the Nigerian Market",
+  "author": {
+    "name": "Sisi Technology Ltd",
+    "email": "info@sisitech.com",
+    "url": "https://github.com/attahzoe78/Smart-School-v4.0.0"
+  },
+  "license": "SEE LICENSE IN LICENSE.txt",
   "main": "electron/main.js",
   "scripts": {
     "setup": "node scripts/setup.js",
