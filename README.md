@@ -201,6 +201,58 @@ Proprietary — © Sisi Technology Ltd, Jos Plateau State, Nigeria.
 
 ---
 
+## Deployment on Vercel
+
+Smart School is configured for seamless deployment on Vercel.
+
+### Option A: One-Click Deploy via Vercel Dashboard
+
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Import the GitHub repository: `attahzoe78/Smart-School-v4.0.0`
+3. Vercel will auto-detect Next.js settings
+4. **Before deploying**, add these Environment Variables:
+   - `DATABASE_URL` → your Turso database URL (see below)
+   - `DATABASE_AUTH_TOKEN` → your Turso auth token
+5. Click **Deploy**
+
+### Option B: Deploy via CLI
+
+```bash
+# Get a Vercel token from https://vercel.com/account/tokens
+VERCEL_TOKEN=your_token bash scripts/deploy-vercel.sh
+```
+
+### Setting up Turso Database (for Vercel)
+
+SQLite files don't persist on Vercel's serverless platform. Use **Turso** (free, SQLite-compatible):
+
+1. **Sign up** at [turso.tech](https://turso.tech)
+2. **Create a database:**
+   ```bash
+   turso db create smart-school
+   ```
+3. **Get your connection URL:**
+   ```bash
+   turso db show smart-school --url
+   # → libsql://smart-school-yourname.turso.io
+   ```
+4. **Create an auth token:**
+   ```bash
+   turso db tokens create smart-school
+   ```
+5. **Add to Vercel Environment Variables:**
+   - `DATABASE_URL` = `libsql://smart-school-yourname.turso.io`
+   - `DATABASE_AUTH_TOKEN` = your token
+6. **Push the schema to Turso:**
+   ```bash
+   DATABASE_URL="libsql://smart-school-yourname.turso.io" \
+   DATABASE_AUTH_TOKEN="your-token" \
+   bun run db:push
+   ```
+7. **Redeploy** on Vercel — your app is now live with a persistent database!
+
+---
+
 ## Developer
 
 **Sisi Technology Ltd**
