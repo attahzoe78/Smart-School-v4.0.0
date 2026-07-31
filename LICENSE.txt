@@ -1,0 +1,40 @@
+Smart School v4.0.0 - Software License Agreement
+
+Copyright © 2024 Sisi Technology Ltd. All rights reserved.
+
+Developed by Sisi Technology Ltd, Jos Plateau State, Nigeria.
+
+GRANT OF LICENSE
+================
+Sisi Technology Ltd grants you a non-exclusive, non-transferable license
+to install and use Smart School v4.0.0 on your computer systems for
+educational institution management purposes.
+
+You may:
+- Install and use the software on any number of computers within your institution
+- Make backup copies of the software
+- Configure the software to suit your institution's needs
+
+You may NOT:
+- Redistribute, sell, or sublicense the software without permission
+- Reverse engineer or modify the source code
+- Remove copyright notices or proprietary markings
+
+WARRANTY DISCLAIMER
+===================
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+LIMITATION OF LIABILITY
+========================
+IN NO EVENT SHALL SISI TECHNOLOGY LTD BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+SUPPORT
+=======
+For support, updates, and inquiries, please contact:
+Sisi Technology Ltd
+Jos, Plateau State, Nigeria

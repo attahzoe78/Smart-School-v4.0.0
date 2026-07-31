@@ -1,0 +1,89 @@
+{
+  "appId": "com.sisitech.smartschool",
+  "productName": "Smart School",
+  "copyright": "Copyright © 2024 Sisi Technology Ltd",
+  "description": "Modern and Complete School Automation Software for the Nigerian Market",
+  "author": {
+    "name": "Sisi Technology Ltd",
+    "email": "info@sisitech.com",
+    "url": "https://github.com/attahzoe78/Smart-School-v4.0.0"
+  },
+
+  "directories": {
+    "output": "dist",
+    "buildResources": "electron/assets"
+  },
+
+  "files": [
+    "electron/**/*",
+    ".next/standalone/**/*",
+    ".next/static/**/*",
+    "public/**/*",
+    "prisma/schema.prisma",
+    "node_modules/.prisma/**/*",
+    "node_modules/@prisma/client/**/*",
+    "node_modules/prisma/**/*",
+    "scripts/setup.js",
+    "package.json"
+  ],
+
+  "extraResources": [
+    {
+      "from": ".next/standalone",
+      "to": "app/.next/standalone"
+    },
+    {
+      "from": ".next/static",
+      "to": "app/.next/static"
+    },
+    {
+      "from": "public",
+      "to": "app/public"
+    },
+    {
+      "from": "prisma",
+      "to": "app/prisma"
+    },
+    {
+      "from": "scripts",
+      "to": "app/scripts"
+    }
+  ],
+
+  "win": {
+    "icon": "electron/assets/icon.ico",
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "artifactName": "SmartSchool-Setup-${version}.${ext}"
+  },
+
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Smart School",
+    "installerIcon": "electron/assets/icon.ico",
+    "uninstallerIcon": "electron/assets/icon.ico",
+    "installerHeaderIcon": "electron/assets/icon.ico",
+    "deleteAppDataOnUninstall": false,
+    "runAfterFinish": true,
+    "installerLanguages": ["en_US"],
+    "language": "1033",
+    "displayLanguageSelector": false,
+    "license": "LICENSE.txt",
+    "warningsAsErrors": false
+  },
+
+  "publish": {
+    "provider": "github",
+    "owner": "attahzoe78",
+    "repo": "Smart-School-v4.0.0",
+    "releaseType": "release"
+  }
+}

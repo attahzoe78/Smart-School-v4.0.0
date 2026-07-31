@@ -2,6 +2,7 @@
   "name": "smart-school",
   "version": "4.0.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "setup": "node scripts/setup.js",
     "predev": "node scripts/setup.js",
@@ -9,6 +10,7 @@
     "prebuild": "node scripts/setup.js",
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
+
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
     "predb:push": "node scripts/setup.js",
@@ -18,7 +20,15 @@
     "predb:migrate": "node scripts/setup.js",
     "db:migrate": "prisma migrate dev",
     "predb:reset": "node scripts/setup.js",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+
+    "electron:dev": "node scripts/setup.js && next build && electron .",
+    "electron:start": "electron .",
+    "predist": "node scripts/setup.js && prisma generate && next build",
+    "dist": "electron-builder --config electron-builder.json",
+    "dist:win": "node scripts/setup.js && prisma generate && next build && electron-builder --config electron-builder.json --win --x64",
+    "dist:mac": "node scripts/setup.js && prisma generate && next build && electron-builder --config electron-builder.json --mac",
+    "dist:linux": "node scripts/setup.js && prisma generate && next build && electron-builder --config electron-builder.json --linux"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -95,6 +105,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "bun-types": "^1.3.4",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9",
     "eslint-config-next": "^16.1.1",
     "tailwindcss": "^4",

@@ -3,21 +3,26 @@ import { PrismaLibSql } from '@prisma/adapter-libsql'
 import { createClient } from '@libsql/client'
 import { existsSync, mkdirSync } from 'fs'
 import { resolve, join, isAbsolute } from 'path'
+import { homedir } from 'os'
 
 /**
  * Resolves the SQLite database path to an ABSOLUTE path.
  *
- * Prisma resolves relative `file:` paths relative to the schema file
- * location (prisma/schema.prisma), NOT the project root or CWD.
- * This causes "Unable to open database file" (error code 14) when
- * the path resolves to a non-existent directory.
+ * This function handles multiple environments:
  *
- * IMPORTANT: In Next.js with Turbopack, `__dirname` does NOT point to
- * the source file location — it points to a bundled location in .next/server/.
- * We use `process.cwd()` instead, which always returns the project root
- * in Next.js (both dev and production).
+ * 1. Electron Desktop App (packaged):
+ *    - Uses Electron's userData directory (set via process.env.ELECTRON_USER_DATA)
+ *    - e.g., C:\Users\<user>\AppData\Roaming\Smart School\database\custom.db
  *
- * Fix: Always resolve to an absolute path using process.cwd().
+ * 2. Turso/libSQL (Vercel/production):
+ *    - Passes through libsql:// URLs as-is
+ *
+ * 3. Local Development (Next.js dev):
+ *    - Uses process.cwd() to resolve relative paths
+ *    - Falls back to <project-root>/db/custom.db
+ *
+ * IMPORTANT: In Next.js with Turbopack, __dirname doesn't point to the
+ * source file. We use process.cwd() which always returns project root.
  */
 function getDatabaseUrl(): string {
   const envUrl = process.env.DATABASE_URL
@@ -27,19 +32,31 @@ function getDatabaseUrl(): string {
     return envUrl
   }
 
-  // For local SQLite, resolve to an absolute path
-  // process.cwd() always returns the project root in Next.js
+  // ========================================
+  // Electron Desktop App - use userData directory
+  // ========================================
+  // When running inside Electron, the main process sets ELECTRON_USER_DATA
+  // to the user's app data directory (e.g., AppData/Roaming/Smart School)
+  const electronUserData = process.env.ELECTRON_USER_DATA
+  if (electronUserData) {
+    const dbDir = join(electronUserData, 'database')
+    if (!existsSync(dbDir)) {
+      try { mkdirSync(dbDir, { recursive: true }) } catch {}
+    }
+    const dbPath = resolve(join(dbDir, 'custom.db'))
+    return `file:${dbPath}`
+  }
+
+  // ========================================
+  // Local Development / Server - resolve to absolute path
+  // ========================================
   const projectRoot = process.cwd()
   let dbPath: string
 
   if (envUrl && envUrl.startsWith('file:')) {
-    // Strip the "file:" prefix
     let rawPath = envUrl.slice(5)
-    // Remove leading ./ if present
     if (rawPath.startsWith('./')) rawPath = rawPath.slice(2)
-    // Remove surrounding quotes if present (from .env parsing edge cases)
     rawPath = rawPath.replace(/^["']|["']$/g, '')
-    // If not absolute, resolve relative to project root
     if (!isAbsolute(rawPath)) {
       rawPath = join(projectRoot, rawPath)
     }
@@ -49,17 +66,12 @@ function getDatabaseUrl(): string {
     dbPath = join(projectRoot, 'db', 'custom.db')
   }
 
-  // Normalize the path (resolve any .. or . segments)
   dbPath = resolve(dbPath)
 
   // Ensure the parent directory exists
   const dbDir = resolve(dbPath, '..')
   if (!existsSync(dbDir)) {
-    try {
-      mkdirSync(dbDir, { recursive: true })
-    } catch {
-      // Directory creation may fail in read-only environments; ignore
-    }
+    try { mkdirSync(dbDir, { recursive: true }) } catch {}
   }
 
   return `file:${dbPath}`
@@ -68,7 +80,7 @@ function getDatabaseUrl(): string {
 const databaseUrl = getDatabaseUrl()
 const isTurso = databaseUrl.startsWith('libsql://') || databaseUrl.startsWith('libsql+ws://')
 
-// Make the resolved URL available to Prisma (in case it was a relative path)
+// Make the resolved URL available to Prisma
 if (!isTurso) {
   process.env.DATABASE_URL = databaseUrl
 }
@@ -78,7 +90,6 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient(): PrismaClient {
-  // Use Turso adapter when the URL is a libsql:// URL (for Vercel/production)
   if (isTurso) {
     const libsql = createClient({
       url: databaseUrl,
@@ -88,7 +99,6 @@ function createPrismaClient(): PrismaClient {
     return new PrismaClient({ adapter })
   }
 
-  // Local SQLite development
   return new PrismaClient({
     log: process.env.NODE_ENV === 'production' ? ['error'] : ['error', 'warn'],
   })
