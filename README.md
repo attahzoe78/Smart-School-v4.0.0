@@ -253,6 +253,69 @@ SQLite files don't persist on Vercel's serverless platform. Use **Turso** (free,
 
 ---
 
+## Windows Desktop Installation (.exe Installer)
+
+Smart School can be installed as a **native Windows desktop application** — no Node.js, Bun, or browser required!
+
+### Download the Installer
+
+1. Go to the [Releases page](https://github.com/attahzoe78/Smart-School-v4.0.0/releases)
+2. Download `SmartSchool-Setup-4.0.0.exe`
+3. Run the installer
+4. Follow the setup wizard (choose install location, create shortcuts)
+5. Launch **Smart School** from your Desktop or Start Menu
+
+### System Requirements
+
+- Windows 10 or later (64-bit)
+- 2GB RAM minimum (4GB recommended)
+- 500MB free disk space
+- No internet connection required (fully offline)
+
+### What the Installer Includes
+
+- Complete Next.js application (standalone build)
+- Embedded Node.js runtime (via Electron)
+- SQLite database engine (bundled)
+- All 25+ modules and 8 user panels
+- Prisma ORM for database management
+- The database is stored in `C:\Users\<user>\AppData\Roaming\Smart School\database\`
+
+### First Launch
+
+On first launch, the app will:
+1. Show a splash screen while starting the internal server
+2. Open the installation wizard (set up school name, admin account)
+3. Create the database tables automatically
+4. After setup, you can start using Smart School immediately
+
+### Build the Installer Yourself
+
+To build the Windows .exe from source:
+
+```bash
+# Prerequisites: Node.js 18+ and Git
+git clone https://github.com/attahzoe78/Smart-School-v4.0.0.git
+cd Smart-School-v4.0.0
+bun install          # or npm install
+bun run dist:win     # builds the .exe installer
+```
+
+The installer will be created in the `dist/` folder as `SmartSchool-Setup-4.0.0.exe`.
+
+### GitHub Actions (Automatic Builds)
+
+The repository includes a GitHub Actions workflow (`.github/workflows/build-windows.yml`) that automatically builds the Windows installer when you create a new release tag:
+
+```bash
+git tag v4.0.0
+git push origin v4.0.0
+```
+
+This triggers the build on GitHub's Windows runners and publishes the .exe to the Releases page automatically.
+
+---
+
 ## Developer
 
 **Sisi Technology Ltd**
