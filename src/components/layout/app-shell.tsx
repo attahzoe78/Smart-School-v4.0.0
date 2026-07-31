@@ -21,6 +21,7 @@ import { SettingsScreen } from "@/components/screens/settings";
 import { RolesScreen } from "@/components/screens/roles";
 import { HrScreen } from "@/components/screens/hr";
 import { CertificatesScreen } from "@/components/screens/certificates";
+import { DiagnosticsScreen } from "@/components/screens/diagnostics";
 import { ConstructionScreen } from "@/components/screens/construction";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -58,6 +59,7 @@ export function AppShell() {
       case "cms": case "pages": case "news": case "gallery": case "banners": case "menus": case "media": return <CmsScreen />;
       case "settings": return <SettingsScreen />;
       case "roles": return <RolesScreen />;
+      case "diagnostics": return <DiagnosticsScreen />;
       case "payroll": case "leave": return <HrScreen />;
       case "certificates": return <CertificatesScreen />;
       case "hostel": case "transport": return <SettingsScreen />;

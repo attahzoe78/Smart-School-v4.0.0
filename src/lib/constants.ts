@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, GraduationCap, Wallet, CalendarCheck, Building2,
   BookOpen, ClipboardList, FileText, CalendarDays, Newspaper, ShieldCheck,
   Award, Settings, UserCog, PhoneCall, ScrollText, Bus, Home, Layers,
-  Newspaper as News, Image, Menu, Download, Clock, FolderTree
+  Newspaper as News, Image, Menu, Download, Clock, FolderTree, Activity
 } from "lucide-react";
 
 export type UserRole =
@@ -61,6 +61,7 @@ export const MODULES: NavModule[] = [
   { id: "transport", label: "Transport", icon: Bus, category: "Facilities", roles: ["Super Admin","Admin"] },
   { id: "roles", label: "Roles & Permissions", icon: ShieldCheck, category: "System", roles: ["Super Admin"] },
   { id: "settings", label: "Settings", icon: Settings, category: "System", roles: ["Super Admin","Admin"] },
+  { id: "diagnostics", label: "Diagnostics", icon: Activity, category: "System", roles: ["Super Admin"], description: "Real-time system health monitoring" },
 ];
 
 export const MODULE_CATEGORIES = [
