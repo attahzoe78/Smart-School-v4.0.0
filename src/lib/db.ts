@@ -2,18 +2,22 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaLibSql } from '@prisma/adapter-libsql'
 import { createClient } from '@libsql/client'
 import { existsSync, mkdirSync } from 'fs'
-import { resolve, join } from 'path'
+import { resolve, join, isAbsolute } from 'path'
 
 /**
  * Resolves the SQLite database path to an ABSOLUTE path.
  *
  * Prisma resolves relative `file:` paths relative to the schema file
  * location (prisma/schema.prisma), NOT the project root or CWD.
- * This causes "Unable to open database file" errors when the path
- * resolves to a non-existent directory.
+ * This causes "Unable to open database file" (error code 14) when
+ * the path resolves to a non-existent directory.
  *
- * Fix: Always use an absolute path so it works regardless of where
- * the process runs from.
+ * IMPORTANT: In Next.js with Turbopack, `__dirname` does NOT point to
+ * the source file location — it points to a bundled location in .next/server/.
+ * We use `process.cwd()` instead, which always returns the project root
+ * in Next.js (both dev and production).
+ *
+ * Fix: Always resolve to an absolute path using process.cwd().
  */
 function getDatabaseUrl(): string {
   const envUrl = process.env.DATABASE_URL
@@ -24,6 +28,8 @@ function getDatabaseUrl(): string {
   }
 
   // For local SQLite, resolve to an absolute path
+  // process.cwd() always returns the project root in Next.js
+  const projectRoot = process.cwd()
   let dbPath: string
 
   if (envUrl && envUrl.startsWith('file:')) {
@@ -31,17 +37,20 @@ function getDatabaseUrl(): string {
     let rawPath = envUrl.slice(5)
     // Remove leading ./ if present
     if (rawPath.startsWith('./')) rawPath = rawPath.slice(2)
-    // If not absolute, resolve relative to project root (two levels up from src/lib)
-    if (!rawPath.startsWith('/')) {
-      const projectRoot = resolve(__dirname, '..', '..')
+    // Remove surrounding quotes if present (from .env parsing edge cases)
+    rawPath = rawPath.replace(/^["']|["']$/g, '')
+    // If not absolute, resolve relative to project root
+    if (!isAbsolute(rawPath)) {
       rawPath = join(projectRoot, rawPath)
     }
     dbPath = rawPath
   } else {
     // Fallback: default location at <project-root>/db/custom.db
-    const projectRoot = resolve(__dirname, '..', '..')
     dbPath = join(projectRoot, 'db', 'custom.db')
   }
+
+  // Normalize the path (resolve any .. or . segments)
+  dbPath = resolve(dbPath)
 
   // Ensure the parent directory exists
   const dbDir = resolve(dbPath, '..')
@@ -59,7 +68,7 @@ function getDatabaseUrl(): string {
 const databaseUrl = getDatabaseUrl()
 const isTurso = databaseUrl.startsWith('libsql://') || databaseUrl.startsWith('libsql+ws://')
 
-// Make the resolved URL available to Prisma
+// Make the resolved URL available to Prisma (in case it was a relative path)
 if (!isTurso) {
   process.env.DATABASE_URL = databaseUrl
 }
