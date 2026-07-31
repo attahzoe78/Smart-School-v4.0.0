@@ -1,15 +1,22 @@
 {
-  "name": "nextjs_tailwind_shadcn_ts",
-  "version": "0.2.1",
+  "name": "smart-school",
+  "version": "4.0.0",
   "private": true,
   "scripts": {
+    "setup": "node scripts/setup.js",
+    "predev": "node scripts/setup.js",
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
+    "prebuild": "node scripts/setup.js",
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
+    "predb:push": "node scripts/setup.js",
     "db:push": "prisma db push --accept-data-loss",
+    "predb:generate": "node scripts/setup.js",
     "db:generate": "prisma generate",
+    "predb:migrate": "node scripts/setup.js",
     "db:migrate": "prisma migrate dev",
+    "predb:reset": "node scripts/setup.js",
     "db:reset": "prisma migrate reset"
   },
   "dependencies": {

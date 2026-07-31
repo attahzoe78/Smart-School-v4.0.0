@@ -79,30 +79,25 @@ Smart School is a **web install application** — it includes a built-in install
    npm install
    ```
 
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` to set your `DATABASE_URL` (absolute file path to SQLite database).
-
-4. **Initialize the database**
+3. **Initialize the database**
    ```bash
    bun run db:push
    ```
+   > **Note:** The `.env` file is auto-created on first run. You don't need to manually set up environment variables — the setup script (`scripts/setup.js`) runs automatically before `dev`, `build`, and `db:*` commands. It creates `.env` with a relative SQLite path (`file:./db/custom.db`) that works on any machine.
 
-5. **Start the development server**
+4. **Start the development server**
    ```bash
    bun run dev
    ```
 
-6. **Open your browser** and navigate to `http://localhost:3000`
+5. **Open your browser** and navigate to `http://localhost:3000`
 
-7. **Follow the installation wizard** — the app will guide you through:
+6. **Follow the installation wizard** — the app will guide you through:
    - School details configuration
    - Super Admin account creation
    - Database initialization (creates default classes, subjects, departments, roles, etc.)
 
-8. **Log in** with the credentials you created during installation.
+7. **Log in** with the credentials you created during installation.
 
 ### Demo Data (Optional)
 
