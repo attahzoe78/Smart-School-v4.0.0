@@ -23,9 +23,11 @@ if (!fs.existsSync(dbDir)) {
 // Create .env from .env.example if it doesn't exist
 if (!fs.existsSync(envPath)) {
   if (fs.existsSync(envExamplePath)) {
-    fs.copyFileSync(envExamplePath, envPath);
-    console.log("✓ Created .env file from .env.example");
+    // Only copy the local dev line (first DATABASE_URL), skip comments
+    fs.writeFileSync(envPath, 'DATABASE_URL="file:./db/custom.db"\n');
+    console.log("✓ Created .env file for local development");
     console.log("  DATABASE_URL is set to: file:./db/custom.db (relative path)");
+    console.log("  For Vercel/production, see .env.example for Turso setup instructions.");
   } else {
     // Fallback: create .env with default value
     fs.writeFileSync(envPath, 'DATABASE_URL="file:./db/custom.db"\n');

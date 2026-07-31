@@ -3,7 +3,8 @@
 // Developed by Sisi Technology Ltd, Jos Plateau State, Nigeria
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
