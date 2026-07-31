@@ -15,7 +15,7 @@
     "predev": "node scripts/setup.js",
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
     "prebuild": "node scripts/setup.js",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build && node scripts/postbuild.js",
     "postinstall": "prisma generate",
 
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
@@ -29,13 +29,13 @@
     "predb:reset": "node scripts/setup.js",
     "db:reset": "prisma migrate reset",
 
-    "electron:dev": "node scripts/setup.js && next build && electron .",
+    "electron:dev": "node scripts/setup.js && next build && node scripts/postbuild.js && electron .",
     "electron:start": "electron .",
-    "predist": "node scripts/setup.js && prisma generate && next build",
+    "predist": "node scripts/setup.js && prisma generate && next build && node scripts/postbuild.js",
     "dist": "electron-builder --config electron-builder.json",
-    "dist:win": "node scripts/setup.js && prisma generate && next build && electron-builder --config electron-builder.json --win --x64",
-    "dist:mac": "node scripts/setup.js && prisma generate && next build && electron-builder --config electron-builder.json --mac",
-    "dist:linux": "node scripts/setup.js && prisma generate && next build && electron-builder --config electron-builder.json --linux"
+    "dist:win": "node scripts/setup.js && prisma generate && next build && node scripts/postbuild.js && electron-builder --config electron-builder.json --win --x64",
+    "dist:mac": "node scripts/setup.js && prisma generate && next build && node scripts/postbuild.js && electron-builder --config electron-builder.json --mac",
+    "dist:linux": "node scripts/setup.js && prisma generate && next build && node scripts/postbuild.js && electron-builder --config electron-builder.json --linux"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

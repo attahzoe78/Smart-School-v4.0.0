@@ -10,14 +10,13 @@
 
   "files": [
     "electron/**/*",
-    ".next/standalone/**/*",
-    ".next/static/**/*",
     "public/**/*",
     "prisma/schema.prisma",
     "node_modules/.prisma/**/*",
     "node_modules/@prisma/client/**/*",
     "node_modules/prisma/**/*",
     "scripts/setup.js",
+    "scripts/postbuild.js",
     "package.json"
   ],
 
@@ -25,10 +24,6 @@
     {
       "from": ".next/standalone",
       "to": "app/.next/standalone"
-    },
-    {
-      "from": ".next/static",
-      "to": "app/.next/static"
     },
     {
       "from": "public",

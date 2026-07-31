@@ -62,4 +62,4 @@ server.log
 /agent-ctx/
 /worklog.md
 /.zscripts/
-/tests/
+/tests/upload/

@@ -3,40 +3,53 @@ import { PrismaLibSql } from '@prisma/adapter-libsql'
 import { createClient } from '@libsql/client'
 import { existsSync, mkdirSync } from 'fs'
 import { resolve, join, isAbsolute } from 'path'
-import { homedir } from 'os'
 
 /**
  * Resolves the SQLite database path to an ABSOLUTE path.
  *
- * This function handles multiple environments:
- *
- * 1. Electron Desktop App (packaged):
- *    - Uses Electron's userData directory (set via process.env.ELECTRON_USER_DATA)
- *    - e.g., C:\Users\<user>\AppData\Roaming\Smart School\database\custom.db
- *
- * 2. Turso/libSQL (Vercel/production):
- *    - Passes through libsql:// URLs as-is
- *
- * 3. Local Development (Next.js dev):
- *    - Uses process.cwd() to resolve relative paths
- *    - Falls back to <project-root>/db/custom.db
- *
- * IMPORTANT: In Next.js with Turbopack, __dirname doesn't point to the
- * source file. We use process.cwd() which always returns project root.
+ * Priority:
+ * 1. If DATABASE_URL is a libsql:// URL → use as-is (Turso/Vercel)
+ * 2. If DATABASE_URL is an absolute file: path → use as-is (set by Electron)
+ * 3. If ELECTRON_USER_DATA is set → use <userData>/database/custom.db
+ * 4. If DATABASE_URL is a relative file: path → resolve to absolute using process.cwd()
+ * 5. Fallback → use <project-root>/db/custom.db
  */
 function getDatabaseUrl(): string {
   const envUrl = process.env.DATABASE_URL
 
-  // If using Turso/libSQL (production/Vercel), use as-is
+  // 1. Turso/libSQL → use as-is
   if (envUrl && (envUrl.startsWith('libsql://') || envUrl.startsWith('libsql+ws://'))) {
     return envUrl
   }
 
-  // ========================================
-  // Electron Desktop App - use userData directory
-  // ========================================
-  // When running inside Electron, the main process sets ELECTRON_USER_DATA
-  // to the user's app data directory (e.g., AppData/Roaming/Smart School)
+  // 2. If DATABASE_URL is already an absolute file: path, use it directly
+  //    (Electron's main.js sets this to C:\Users\...\AppData\Roaming\Smart School\database\custom.db)
+  if (envUrl && envUrl.startsWith('file:')) {
+    let rawPath = envUrl.slice(5)
+    if (rawPath.startsWith('./')) rawPath = rawPath.slice(2)
+    rawPath = rawPath.replace(/^["']|["']$/g, '')
+
+    if (isAbsolute(rawPath)) {
+      // Already an absolute path — ensure directory exists, then return
+      const dbDir = resolve(rawPath, '..')
+      if (!existsSync(dbDir)) {
+        try { mkdirSync(dbDir, { recursive: true }) } catch {}
+      }
+      return `file:${resolve(rawPath)}`
+    }
+
+    // Relative path — resolve using process.cwd()
+    const projectRoot = process.cwd()
+    rawPath = join(projectRoot, rawPath)
+    const dbDir = resolve(rawPath, '..')
+    if (!existsSync(dbDir)) {
+      try { mkdirSync(dbDir, { recursive: true }) } catch {}
+    }
+    return `file:${resolve(rawPath)}`
+  }
+
+  // 3. Electron fallback — use userData directory if ELECTRON_USER_DATA is set
+  //    (only when DATABASE_URL is not set at all)
   const electronUserData = process.env.ELECTRON_USER_DATA
   if (electronUserData) {
     const dbDir = join(electronUserData, 'database')
@@ -47,34 +60,14 @@ function getDatabaseUrl(): string {
     return `file:${dbPath}`
   }
 
-  // ========================================
-  // Local Development / Server - resolve to absolute path
-  // ========================================
+  // 4. Fallback — default location at <project-root>/db/custom.db
   const projectRoot = process.cwd()
-  let dbPath: string
-
-  if (envUrl && envUrl.startsWith('file:')) {
-    let rawPath = envUrl.slice(5)
-    if (rawPath.startsWith('./')) rawPath = rawPath.slice(2)
-    rawPath = rawPath.replace(/^["']|["']$/g, '')
-    if (!isAbsolute(rawPath)) {
-      rawPath = join(projectRoot, rawPath)
-    }
-    dbPath = rawPath
-  } else {
-    // Fallback: default location at <project-root>/db/custom.db
-    dbPath = join(projectRoot, 'db', 'custom.db')
-  }
-
-  dbPath = resolve(dbPath)
-
-  // Ensure the parent directory exists
+  const dbPath = join(projectRoot, 'db', 'custom.db')
   const dbDir = resolve(dbPath, '..')
   if (!existsSync(dbDir)) {
     try { mkdirSync(dbDir, { recursive: true }) } catch {}
   }
-
-  return `file:${dbPath}`
+  return `file:${resolve(dbPath)}`
 }
 
 const databaseUrl = getDatabaseUrl()
