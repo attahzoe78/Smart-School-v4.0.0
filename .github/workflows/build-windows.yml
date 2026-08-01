@@ -37,8 +37,8 @@ jobs:
         env:
           DATABASE_URL: "file:./db/custom.db"
 
-      - name: Build Next.js app
-        run: bun run build
+      - name: Build Next.js app (with Electron postbuild)
+        run: bun run build:electron
         env:
           DATABASE_URL: "file:./db/custom.db"
 

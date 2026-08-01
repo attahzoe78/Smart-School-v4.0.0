@@ -2,30 +2,37 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Auto-setup script for Smart School
+ *
  * Creates .env file with an ABSOLUTE database path if it doesn't exist.
  * Ensures the database directory exists.
  * This runs automatically before dev/build/db commands.
  *
- * IMPORTANT: Prisma resolves relative file: paths relative to the schema
- * file (prisma/schema.prisma), NOT the project root. This causes
- * "Unable to open database file" errors. We use an absolute path to fix this.
+ * IMPORTANT: This script is SKIPPED on Vercel (detected via VERCEL env var).
+ * On Vercel, environment variables are set directly in the dashboard.
  */
 const fs = require("fs");
 const path = require("path");
+
+// ========================================
+// Skip on Vercel — env vars are set in dashboard
+// ========================================
+if (process.env.VERCEL || process.env.NOW_BUILDER) {
+  console.log("✓ Running on Vercel — skipping local .env setup");
+  process.exit(0);
+}
 
 const projectRoot = path.resolve(__dirname, "..");
 const envPath = path.join(projectRoot, ".env");
 const dbDir = path.join(projectRoot, "db");
 const dbFile = path.join(dbDir, "custom.db");
 
-// Ensure db directory exists
+// Ensure db directory exists (local dev only)
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
   console.log("✓ Created db/ directory");
 }
 
 // Build the absolute DATABASE_URL
-// Use forward slashes for cross-platform compatibility
 const absoluteDbPath = dbFile.replace(/\\/g, "/");
 const databaseUrl = `file:${absoluteDbPath}`;
 
