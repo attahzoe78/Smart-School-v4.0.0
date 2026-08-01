@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
+import { DiagnosticsFAB } from "@/components/diagnostics-fab";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,6 +26,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} antialiased bg-background text-foreground`}>
         <Providers>
           {children}
+          <DiagnosticsFAB />
           <Toaster />
           <SonnerToaster position="top-right" richColors />
         </Providers>

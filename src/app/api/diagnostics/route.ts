@@ -629,6 +629,44 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    if (action === "report") {
+      // Submit a diagnostic report from the FAB
+      const { domain, categories, description, moduleContext, reportedBy } = body;
+
+      if (!domain || !description || !description.trim()) {
+        return NextResponse.json(
+          { error: "Domain and description are required" },
+          { status: 400 }
+        );
+      }
+
+      // In a production system, this would persist to a diagnostics_reports table
+      // For now, we log it and return success
+      const reportId = `RPT-${Date.now().toString(36).toUpperCase()}`;
+      const severity = (categories || []).includes("Crash") || (categories || []).includes("Data Loss")
+        ? "critical"
+        : (categories || []).includes("High Latency") || (categories || []).includes("Desync")
+        ? "warning"
+        : "info";
+
+      console.log(`[Diagnostics Report] ${reportId}`, {
+        domain,
+        categories,
+        description: description.substring(0, 200),
+        moduleContext,
+        reportedBy,
+        severity,
+      });
+
+      return NextResponse.json({
+        success: true,
+        reportId,
+        message: `Diagnostic report ${reportId} submitted successfully. The diagnostics team will investigate.`,
+        severity,
+        submittedAt: new Date().toISOString(),
+      });
+    }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
